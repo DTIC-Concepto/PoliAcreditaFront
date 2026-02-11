@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { BACKEND_URL } from '@/lib/api';
 
-const API_BASE_URL = 'https://backprueba-production-fdf6.up.railway.app';
+const API_BASE_URL = BACKEND_URL;
 
 // GET - Obtener usuarios con filtros opcionales
 export async function GET(request: NextRequest) {
@@ -21,78 +22,45 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Hacer peticiones iterativas para obtener todos los datos
-    let allData: any[] = [];
-    let page = 1;
-    let hasMore = true;
+    // Construir URL sin `page`
+    const params = new URLSearchParams();
+    if (rol) params.append('rol', rol);
+    if (estadoActivo !== null) params.append('estadoActivo', estadoActivo);
+    if (search) params.append('search', search);
 
-    while (hasMore) {
-      // Construir URL con parámetros
-      const params = new URLSearchParams();
-      if (rol) params.append('rol', rol);
-      if (estadoActivo !== null) params.append('estadoActivo', estadoActivo);
-      if (search) params.append('search', search);
-      params.append('page', page.toString());
+    const queryString = params.toString();
+    const url = `${API_BASE_URL}/usuarios${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json',
+      },
+    });
 
-      const queryString = params.toString();
-      const url = `${API_BASE_URL}/usuarios?${queryString}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': authorization,
-          'Content-Type': 'application/json',
-        },
-      });
+    const data = await response.json();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        return NextResponse.json(
-          { error: data.message || 'Error al obtener usuarios' },
-          { status: response.status }
-        );
-      }
-
-      // El backend puede devolver {data: Array, total: number} o Array directamente
-      if (data && Array.isArray(data.data)) {
-        allData = [...allData, ...data.data];
-        
-        const total = data.total || 0;
-        const currentCount = allData.length;
-        hasMore = currentCount < total;
-        page++;
-        
-        console.log(`Usuarios página ${page - 1}: ${data.data.length} items, total acumulado: ${currentCount}/${total}`);
-      } else if (Array.isArray(data)) {
-        // Si el backend devuelve directamente un array (sin paginación)
-        allData = data;
-        hasMore = false;
-      } else {
-        hasMore = false;
-      }
-
-      // Límite de seguridad
-      if (page > 100) {
-        console.warn('Usuarios: Límite de páginas alcanzado');
-        break;
-      }
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.message || 'Error al obtener usuarios' },
+        { status: response.status }
+      );
     }
 
-    // Asegurar que cada usuario tenga la información de roles correctamente estructurada
+    // Normalizar respuesta
+    const allData = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
+
+    // Asegurar roles correctos
     const processedData = allData.map(user => {
-      // Si el usuario tiene múltiples roles, asegurar que estén en el formato correcto
       if (user.roles && Array.isArray(user.roles)) {
         return {
           ...user,
-          // Mantener compatibilidad con el campo 'rol' para el rol principal
           rol: user.rolPrincipal || user.rol || (user.roles.length > 0 ? user.roles[0].rol : 'PROFESOR')
         };
       }
       return user;
     });
-
-    console.log('Usuarios GET successful: Total de', processedData.length, 'usuarios');
 
     return NextResponse.json(processedData);
   } catch (error) {

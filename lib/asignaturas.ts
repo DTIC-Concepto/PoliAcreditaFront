@@ -150,6 +150,25 @@ export class AsignaturasService {
   }
 
   /**
+   * Elimina una asignatura existente
+   */
+  static async deleteAsignatura(id: number): Promise<void> {
+    try {
+      const response = await AuthService.authenticatedFetch(`/api/asignaturas/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al eliminar asignatura');
+      }
+    } catch (error) {
+      console.error('Error eliminando asignatura:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Valida los datos de la asignatura antes de enviar
    */
   static validateAsignatura(asignatura: Partial<CreateAsignaturaRequest>): string[] {

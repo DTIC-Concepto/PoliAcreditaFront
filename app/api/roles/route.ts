@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.BACKEND_URL || 'https://backprueba-production-fdf6.up.railway.app';
+import { BACKEND_URL } from '@/lib/api';
 
 export async function GET(request: NextRequest) {
   try {

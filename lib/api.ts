@@ -16,7 +16,7 @@ export const API_CONFIG = {
 };
 
 // URL del backend real (para usar en los proxies)
-export const BACKEND_URL = 'https://backprueba-production-fdf6.up.railway.app';
+export const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 // Tipos para la autenticación
 export interface LoginCredentials {

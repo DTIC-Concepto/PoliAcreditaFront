@@ -26,6 +26,7 @@ import { Search, Plus, Edit, Trash2 } from "lucide-react";
 import { AsignaturasService, Asignatura } from "@/lib/asignaturas";
 import NotificationService from "@/lib/notifications";
 import Pagination from "@/components/Pagination";
+import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
 
 export default function Asignaturas() {
   const router = useRouter();
@@ -35,6 +36,9 @@ export default function Asignaturas() {
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [asignaturaToDelete, setAsignaturaToDelete] = useState<Asignatura | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch asignaturas from backend
   useEffect(() => {
@@ -86,6 +90,43 @@ export default function Asignaturas() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, nivelReferencial, creditos]);
+
+  const handleDeleteClick = (asignatura: Asignatura) => {
+    setAsignaturaToDelete(asignatura);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!asignaturaToDelete?.id) {
+      NotificationService.error(
+        'Error al eliminar',
+        'No se encontró el ID de la asignatura.'
+      );
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await AsignaturasService.deleteAsignatura(asignaturaToDelete.id);
+
+      NotificationService.success(
+        'Asignatura eliminada',
+        `La asignatura ${asignaturaToDelete.codigo} ha sido eliminada exitosamente.`
+      );
+
+      await loadAsignaturas();
+      setIsDeleteModalOpen(false);
+      setAsignaturaToDelete(null);
+    } catch (error) {
+      console.error('Error eliminando asignatura:', error);
+      NotificationService.error(
+        'Error al eliminar asignatura',
+        error instanceof Error ? error.message : 'Error desconocido'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <AcademicRoute>
@@ -233,6 +274,7 @@ export default function Asignaturas() {
                               size="icon"
                               className="h-8 w-8 text-[#DC3848] hover:text-[#DC3848] hover:bg-[#F3F4F6]"
                               title="Eliminar asignatura"
+                              onClick={() => handleDeleteClick(asignatura)}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -253,6 +295,22 @@ export default function Asignaturas() {
                 onPageChange={setCurrentPage}
               />
             )}
+
+            <ConfirmDeleteModal
+              isOpen={isDeleteModalOpen}
+              title="Eliminar asignatura"
+              description={`¿Seguro que deseas eliminar la asignatura ${asignaturaToDelete?.codigo || ''}? Esta acción no se puede deshacer.`}
+              confirmLabel="Eliminar"
+              cancelLabel="Cancelar"
+              isLoading={isDeleting}
+              onCancel={() => {
+                if (!isDeleting) {
+                  setIsDeleteModalOpen(false);
+                  setAsignaturaToDelete(null);
+                }
+              }}
+              onConfirm={handleDeleteConfirm}
+            />
           </div>
         </div>
       </Layout>

@@ -97,6 +97,57 @@ export class ProgramObjectivesService {
   }
 
   /**
+   * Actualiza un objetivo de programa existente
+   */
+  static async updateProgramObjective(
+    id: number,
+    objective: CreateProgramObjectiveRequest
+  ): Promise<ProgramObjective> {
+    try {
+      const user = AuthService.getUser();
+      const carreraId = user?.carrera?.id;
+      if (!carreraId) {
+        throw new Error('No se encontró el ID de carrera del usuario.');
+      }
+
+      const bodyToSend = { ...objective, carreraId };
+      const response = await AuthService.authenticatedFetch(`/api/program-objectives/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(bodyToSend),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al actualizar objetivo de programa');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error actualizando objetivo de programa:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina un objetivo de programa existente
+   */
+  static async deleteProgramObjective(id: number): Promise<void> {
+    try {
+      const response = await AuthService.authenticatedFetch(`/api/program-objectives/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al eliminar objetivo de programa');
+      }
+    } catch (error) {
+      console.error('Error eliminando objetivo de programa:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Valida los datos del objetivo antes de enviar
    */
   static validateObjective(objective: Partial<CreateProgramObjectiveRequest>): string[] {

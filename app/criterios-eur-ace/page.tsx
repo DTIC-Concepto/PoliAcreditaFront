@@ -10,6 +10,8 @@ import { EurAceCriterion, EurAceCriteriaService } from "@/lib/eur-ace-criteria";
 import { UserCareerService } from "@/lib/user-career";
 import NotificationService from "@/lib/notifications";
 import NewEurAceCriterionModal from "@/components/NewEurAceCriterionModal";
+import EditEurAceCriterionModal from "@/components/EditEurAceCriterionModal";
+import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
 import Pagination from "@/components/Pagination";
 
 export default function CriteriosEurAce() {
@@ -17,6 +19,11 @@ export default function CriteriosEurAce() {
   const [criteria, setCriteria] = useState<EurAceCriterion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedCriterion, setSelectedCriterion] = useState<EurAceCriterion | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [criterionToDelete, setCriterionToDelete] = useState<EurAceCriterion | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   const canCreateCriteria = UserCareerService.canCreateEurAceCriteria();
@@ -66,6 +73,54 @@ export default function CriteriosEurAce() {
   const handleModalSuccess = () => {
     setIsModalOpen(false);
     loadCriteria(); // Recargar la lista después de crear
+  };
+
+  const handleEditClick = (criterion: EurAceCriterion) => {
+    setSelectedCriterion(criterion);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    loadCriteria();
+    setIsEditModalOpen(false);
+    setSelectedCriterion(null);
+  };
+
+  const handleDeleteClick = (criterion: EurAceCriterion) => {
+    setCriterionToDelete(criterion);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!criterionToDelete?.id) {
+      NotificationService.error(
+        'Error',
+        'No se encontró el ID del criterio EUR-ACE.'
+      );
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await EurAceCriteriaService.deleteEurAceCriterion(criterionToDelete.id);
+
+      NotificationService.success(
+        'Criterio eliminado',
+        `El criterio ${criterionToDelete.codigo} ha sido eliminado exitosamente.`
+      );
+
+      await loadCriteria();
+      setIsDeleteModalOpen(false);
+      setCriterionToDelete(null);
+    } catch (error) {
+      console.error('Error eliminando criterio:', error);
+      NotificationService.error(
+        'Error al eliminar criterio',
+        error instanceof Error ? error.message : 'Ha ocurrido un error inesperado'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Filtrar criterios
@@ -123,21 +178,23 @@ export default function CriteriosEurAce() {
                     <th className="px-5 py-3.5 text-left text-sm font-normal text-[#565D6D] font-['Open_Sans']">
                       Descripción
                     </th>
-                    <th className="px-6 py-3.5 text-center text-sm font-normal text-[#565D6D] font-['Open_Sans'] w-40">
-                      Acciones
-                    </th>
+                    {canCreateCriteria && (
+                      <th className="px-6 py-3.5 text-center text-sm font-normal text-[#565D6D] font-['Open_Sans'] w-40">
+                        Acciones
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-[#565D6D] font-['Open_Sans']">
+                      <td colSpan={canCreateCriteria ? 3 : 2} className="px-4 py-8 text-center text-[#565D6D] font-['Open_Sans']">
                         Cargando criterios...
                       </td>
                     </tr>
                   ) : currentCriteria.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-[#565D6D] font-['Open_Sans']">
+                      <td colSpan={canCreateCriteria ? 3 : 2} className="px-4 py-8 text-center text-[#565D6D] font-['Open_Sans']">
                         {searchTerm ? 'No se encontraron criterios que coincidan con la búsqueda' : 'No hay criterios registrados'}
                       </td>
                     </tr>
@@ -154,22 +211,24 @@ export default function CriteriosEurAce() {
                             {criterio.descripcion}
                           </span>
                         </td>
-                        <td className="px-6 py-8 text-center">
-                          <div className="flex justify-center gap-3">
-                            <button 
-                              className="text-[#565D6D] hover:text-[#003366] transition-colors duration-200"
-                              onClick={() => {/* TODO: implement edit */}}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              className="text-[#565D6D] hover:text-red-600 transition-colors duration-200"
-                              onClick={() => {/* TODO: implement delete */}}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
+                        {canCreateCriteria && (
+                          <td className="px-6 py-8 text-center">
+                            <div className="flex justify-center gap-3">
+                              <button 
+                                className="text-[#565D6D] hover:text-[#003366] transition-colors duration-200"
+                                onClick={() => handleEditClick(criterio)}
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button 
+                                className="text-[#565D6D] hover:text-red-600 transition-colors duration-200"
+                                onClick={() => handleDeleteClick(criterio)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}
@@ -190,6 +249,29 @@ export default function CriteriosEurAce() {
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
             onCriterionCreated={handleModalSuccess}
+          />
+
+          <EditEurAceCriterionModal
+            isOpen={isEditModalOpen}
+            criterion={selectedCriterion}
+            onClose={() => setIsEditModalOpen(false)}
+            onCriterionUpdated={handleEditSuccess}
+          />
+
+          <ConfirmDeleteModal
+            isOpen={isDeleteModalOpen}
+            title="Eliminar criterio EUR-ACE"
+            description={`¿Seguro que deseas eliminar el criterio ${criterionToDelete?.codigo || ''}? Esta acción no se puede deshacer.`}
+            confirmLabel="Eliminar"
+            cancelLabel="Cancelar"
+            isLoading={isDeleting}
+            onCancel={() => {
+              if (!isDeleting) {
+                setIsDeleteModalOpen(false);
+                setCriterionToDelete(null);
+              }
+            }}
+            onConfirm={handleDeleteConfirm}
           />
         </div>
       </Layout>

@@ -11,6 +11,8 @@ import { LearningOutcome, LearningOutcomesService } from "@/lib/learning-outcome
 import { UserCareerService } from "@/lib/user-career";
 import NotificationService from "@/lib/notifications";
 import NewLearningOutcomeModal from "@/components/NewLearningOutcomeModal";
+import EditLearningOutcomeModal from "@/components/EditLearningOutcomeModal";
+import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
 import Pagination from "@/components/Pagination";
 
 export default function ResultadosAprendizaje() {
@@ -20,6 +22,11 @@ export default function ResultadosAprendizaje() {
   const [outcomes, setOutcomes] = useState<LearningOutcome[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedOutcome, setSelectedOutcome] = useState<LearningOutcome | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [outcomeToDelete, setOutcomeToDelete] = useState<LearningOutcome | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Estados de paginación para cada tab
   const [currentPageGenerales, setCurrentPageGenerales] = useState(1);
@@ -81,6 +88,63 @@ export default function ResultadosAprendizaje() {
     setIsModalOpen(false);
   };
 
+  const handleEditClick = (outcome: LearningOutcome) => {
+    setSelectedOutcome(outcome);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    if (activeTab === "generales") {
+      getFilteredResults("GENERAL");
+    } else {
+      getFilteredResults("ESPECIFICO");
+    }
+    setIsEditModalOpen(false);
+    setSelectedOutcome(null);
+  };
+
+  const handleDeleteClick = (outcome: LearningOutcome) => {
+    setOutcomeToDelete(outcome);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!outcomeToDelete?.id) {
+      NotificationService.error(
+        "Error",
+        "No se encontró el ID del resultado de aprendizaje."
+      );
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await LearningOutcomesService.deleteLearningOutcome(outcomeToDelete.id);
+
+      NotificationService.success(
+        "Resultado eliminado",
+        `El resultado ${outcomeToDelete.codigo} ha sido eliminado exitosamente.`
+      );
+
+      if (activeTab === "generales") {
+        await getFilteredResults("GENERAL");
+      } else {
+        await getFilteredResults("ESPECIFICO");
+      }
+
+      setIsDeleteModalOpen(false);
+      setOutcomeToDelete(null);
+    } catch (error) {
+      console.error("Error eliminando resultado:", error);
+      NotificationService.error(
+        "Error al eliminar resultado",
+        error instanceof Error ? error.message : "Ha ocurrido un error inesperado"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Filtrar resultados según el tab activo y búsqueda
   const getFilteredResults = async (tipo: "GENERAL" | "ESPECIFICO") => {
     const searchTerm = tipo === "GENERAL" ? searchTermGenerales : searchTermEspecificos;
@@ -128,7 +192,17 @@ export default function ResultadosAprendizaje() {
     await getFilteredResults("ESPECIFICO");
   };
 
-  const ResultsTable = ({ data, searchTerm }: { data: LearningOutcome[], searchTerm: string }) => (
+  const ResultsTable = ({
+    data,
+    searchTerm,
+    onEdit,
+    onDelete,
+  }: {
+    data: LearningOutcome[];
+    searchTerm: string;
+    onEdit: (outcome: LearningOutcome) => void;
+    onDelete: (outcome: LearningOutcome) => void;
+  }) => (
     <div className="bg-white border border-white rounded-md shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -175,6 +249,7 @@ export default function ResultadosAprendizaje() {
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 text-[#003366] hover:bg-gray-100"
+                        onClick={() => onEdit(resultado)}
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
@@ -182,6 +257,7 @@ export default function ResultadosAprendizaje() {
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 text-[#DC3848] hover:bg-gray-100"
+                        onClick={() => onDelete(resultado)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -245,7 +321,12 @@ export default function ResultadosAprendizaje() {
                 </div>
               </div>
 
-              <ResultsTable data={getPaginatedResults("GENERAL").data} searchTerm={searchTermGenerales} />
+              <ResultsTable
+                data={getPaginatedResults("GENERAL").data}
+                searchTerm={searchTermGenerales}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
+              />
 
               <Pagination
                 currentPage={getPaginatedResults("GENERAL").currentPage}
@@ -269,7 +350,12 @@ export default function ResultadosAprendizaje() {
                 </div>
               </div>
 
-              <ResultsTable data={getPaginatedResults("ESPECIFICO").data} searchTerm={searchTermEspecificos} />
+              <ResultsTable
+                data={getPaginatedResults("ESPECIFICO").data}
+                searchTerm={searchTermEspecificos}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
+              />
 
               <Pagination
                 currentPage={getPaginatedResults("ESPECIFICO").currentPage}
@@ -285,6 +371,29 @@ export default function ResultadosAprendizaje() {
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
             onOutcomeCreated={handleModalSuccess}
+          />
+
+          <EditLearningOutcomeModal
+            isOpen={isEditModalOpen}
+            outcome={selectedOutcome}
+            onClose={() => setIsEditModalOpen(false)}
+            onOutcomeUpdated={handleEditSuccess}
+          />
+
+          <ConfirmDeleteModal
+            isOpen={isDeleteModalOpen}
+            title="Eliminar resultado de aprendizaje"
+            description={`¿Seguro que deseas eliminar el resultado ${outcomeToDelete?.codigo || ""}? Esta acción no se puede deshacer.`}
+            confirmLabel="Eliminar"
+            cancelLabel="Cancelar"
+            isLoading={isDeleting}
+            onCancel={() => {
+              if (!isDeleting) {
+                setIsDeleteModalOpen(false);
+                setOutcomeToDelete(null);
+              }
+            }}
+            onConfirm={handleDeleteConfirm}
           />
         </div>
       </Layout>

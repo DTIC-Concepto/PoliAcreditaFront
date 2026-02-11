@@ -10,6 +10,8 @@ import { ProgramObjective, ProgramObjectivesService } from "@/lib/program-object
 import { UserCareerService } from "@/lib/user-career";
 import NotificationService from "@/lib/notifications";
 import NewProgramObjectiveModal from "@/components/NewProgramObjectiveModal";
+import EditProgramObjectiveModal from "@/components/EditProgramObjectiveModal";
+import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
 import Pagination from "@/components/Pagination";
 
 export default function ObjetivosCarrera() {
@@ -17,6 +19,11 @@ export default function ObjetivosCarrera() {
   const [objectives, setObjectives] = useState<ProgramObjective[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedObjective, setSelectedObjective] = useState<ProgramObjective | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [objectiveToDelete, setObjectiveToDelete] = useState<ProgramObjective | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   
   const canCreateObjectives = UserCareerService.canCreateProgramObjectives();
@@ -66,6 +73,54 @@ export default function ObjetivosCarrera() {
   const handleModalSuccess = () => {
     loadObjectives(); // Recargar la lista después de crear
     setIsModalOpen(false);
+  };
+
+  const handleEditClick = (objective: ProgramObjective) => {
+    setSelectedObjective(objective);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    loadObjectives();
+    setIsEditModalOpen(false);
+    setSelectedObjective(null);
+  };
+
+  const handleDeleteClick = (objective: ProgramObjective) => {
+    setObjectiveToDelete(objective);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!objectiveToDelete?.id) {
+      NotificationService.error(
+        'Error',
+        'No se encontró el ID del objetivo de programa.'
+      );
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await ProgramObjectivesService.deleteProgramObjective(objectiveToDelete.id);
+
+      NotificationService.success(
+        'Objetivo eliminado',
+        `El objetivo ${objectiveToDelete.codigo} ha sido eliminado exitosamente.`
+      );
+
+      await loadObjectives();
+      setIsDeleteModalOpen(false);
+      setObjectiveToDelete(null);
+    } catch (error) {
+      console.error('Error eliminando objetivo:', error);
+      NotificationService.error(
+        'Error al eliminar objetivo',
+        error instanceof Error ? error.message : 'Ha ocurrido un error inesperado'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Filtrar objetivos
@@ -158,6 +213,7 @@ export default function ObjetivosCarrera() {
                               variant="ghost"
                               size="icon"
                               className="h-9 w-9 text-[#003366] hover:bg-gray-100"
+                              onClick={() => handleEditClick(objetivo)}
                             >
                               <Edit2 className="w-4 h-4" />
                             </Button>
@@ -165,6 +221,7 @@ export default function ObjetivosCarrera() {
                               variant="ghost"
                               size="icon"
                               className="h-9 w-9 text-[#DC3848] hover:bg-gray-100"
+                              onClick={() => handleDeleteClick(objetivo)}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -190,6 +247,29 @@ export default function ObjetivosCarrera() {
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
             onObjectiveCreated={handleModalSuccess}
+          />
+
+          <EditProgramObjectiveModal
+            isOpen={isEditModalOpen}
+            objective={selectedObjective}
+            onClose={() => setIsEditModalOpen(false)}
+            onObjectiveUpdated={handleEditSuccess}
+          />
+
+          <ConfirmDeleteModal
+            isOpen={isDeleteModalOpen}
+            title="Eliminar objetivo de programa"
+            description={`¿Seguro que deseas eliminar el objetivo ${objectiveToDelete?.codigo || ''}? Esta acción no se puede deshacer.`}
+            confirmLabel="Eliminar"
+            cancelLabel="Cancelar"
+            isLoading={isDeleting}
+            onCancel={() => {
+              if (!isDeleting) {
+                setIsDeleteModalOpen(false);
+                setObjectiveToDelete(null);
+              }
+            }}
+            onConfirm={handleDeleteConfirm}
           />
         </div>
       </Layout>

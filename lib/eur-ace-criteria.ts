@@ -94,6 +94,50 @@ export class EurAceCriteriaService {
   }
 
   /**
+   * Actualiza un criterio EUR-ACE existente
+   */
+  static async updateEurAceCriterion(
+    id: number,
+    criterion: CreateEurAceCriterionRequest
+  ): Promise<EurAceCriterion> {
+    try {
+      const response = await AuthService.authenticatedFetch(`/api/eur-ace-criteria/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(criterion),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al actualizar criterio EUR-ACE');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error actualizando criterio EUR-ACE:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina un criterio EUR-ACE existente
+   */
+  static async deleteEurAceCriterion(id: number): Promise<void> {
+    try {
+      const response = await AuthService.authenticatedFetch(`/api/eur-ace-criteria/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al eliminar criterio EUR-ACE');
+      }
+    } catch (error) {
+      console.error('Error eliminando criterio EUR-ACE:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Valida los datos del criterio antes de enviar
    */
   static validateCriterion(criterion: Partial<CreateEurAceCriterionRequest>): string[] {

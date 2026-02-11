@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BACKEND_URL } from '@/lib/api';
 
-const API_BASE_URL = 'https://backprueba-production-fdf6.up.railway.app';
+const API_BASE_URL = BACKEND_URL;
 
 // GET - Obtener usuarios con información completa de roles
 export async function GET(request: NextRequest) {

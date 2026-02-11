@@ -107,6 +107,50 @@ export class LearningOutcomesService {
   }
 
   /**
+   * Actualiza un resultado de aprendizaje existente
+   */
+  static async updateLearningOutcome(
+    id: number,
+    outcome: CreateLearningOutcomeRequest
+  ): Promise<LearningOutcome> {
+    try {
+      const response = await AuthService.authenticatedFetch(`/api/learning-outcomes/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(outcome),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al actualizar resultado de aprendizaje');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error actualizando resultado de aprendizaje:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina un resultado de aprendizaje existente
+   */
+  static async deleteLearningOutcome(id: number): Promise<void> {
+    try {
+      const response = await AuthService.authenticatedFetch(`/api/learning-outcomes/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al eliminar resultado de aprendizaje');
+      }
+    } catch (error) {
+      console.error('Error eliminando resultado de aprendizaje:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Valida los datos del resultado de aprendizaje antes de enviar
    */
   static validateLearningOutcome(outcome: Partial<CreateLearningOutcomeRequest>): string[] {
