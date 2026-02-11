@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const allData = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
 
     // Asegurar roles correctos
-    const processedData = allData.map(user => {
+    const processedData = allData.map((user: any) => {
       if (user.roles && Array.isArray(user.roles)) {
         return {
           ...user,
