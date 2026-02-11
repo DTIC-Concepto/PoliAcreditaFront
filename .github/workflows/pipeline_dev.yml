@@ -13,6 +13,23 @@ env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
+  ci:
+    name: Build, Test, and Analyze with SonarCloud
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm ci
+
   deploy-test:
     name: Deploy to Vercel (Test)
     runs-on: ubuntu-latest
